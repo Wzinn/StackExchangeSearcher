@@ -96,7 +96,7 @@ public class SearchController {
 			if (statusCode != 200 && result.contains("throttle_violation")) {
 				return handleThrottling(result);
 			}
-			return ResponseEntity.ok().body(result);
+			return ResponseEntity.status(statusCode).body(result);
 		} catch (IOException e) {
 			LOGGER.error("Failed to execute request", e);
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
