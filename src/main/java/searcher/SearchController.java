@@ -10,22 +10,34 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+@Validated
 @RestController
+@RequestMapping(value = "/search")
 public class SearchController {
 
 	private static final String API_URL = "http://api.stackexchange.com/2.2/search?" +
 			"order=%s&sort=%s&intitle=%s&filter=%s&site=%s&page=%d&pagesize=%d";
 	private static final String TOO_MANY_REQUESTS = "Too many requests, more requests will be available at ";
+
+	/**
+	* Filter to select only the following items fields: owner.display_name, is_answered, creation_date, link, title.
+	 * To obtain all default fields use "default" value.
+	* */
+	private static final String FILTER = "!*0Opwc*9gmyki6sWc3.n6XWcS3jc8uKHk4xVEM3yr";
 	private static final Logger LOGGER = LoggerFactory.getLogger(SearchController.class);
 	private static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -33,16 +45,26 @@ public class SearchController {
 	private LocalDateTime throttlingExpired;
 	private volatile boolean throttled;
 
-
+	/**
+	 * @param order The one of the following options: desc or asc (descending and ascending correspondingly).
+	 * @param sort Response will be sorted by one of the following cafeterias:  activity, votes, creation, relevance
+	 * @param title Title to search a question. Must be provided to search.
+	 * @param filter By default the filter is set to select only the following items fields: owner.display_name,
+	 *                  is_answered, creation_date, link, title. To obtain all default fields use "default" value.
+	 * @param site Site where selected title will be searched. Must be specified one of stackexchange sites; by
+	 *                default it searches in stackoverflow.com.
+	 * @param page Select page; default value is 1.
+	 * @param pageSize Select page size, must be in range from 1 to 100. Default value is 30.
+	 * @return ResponseEntity
+	 */
 	@GetMapping
-	public ResponseEntity search(@RequestParam(value = "order", defaultValue = "desc", required = false) String order,
-	                             @RequestParam(value = "sort", defaultValue = "activity", required = false) String sort,
+	public ResponseEntity search(@RequestParam(value = "order", defaultValue = "desc") String order,
+	                             @RequestParam(value = "sort", defaultValue = "activity") String sort,
 	                             @RequestParam(value = "title") String title,
-	                             @RequestParam(value = "filter", defaultValue = "!frozMWQUTlbM5yAk-SEaBmdGnr37XKzvx.S",
-			                             required = false) String filter,
+	                             @RequestParam(value = "filter", defaultValue = FILTER) String filter,
 	                             @RequestParam(value = "site", defaultValue = "stackoverflow") String site,
 	                             @RequestParam(value = "page", defaultValue = "1") Integer page,
-	                             @RequestParam(value = "pagesize", defaultValue = "100") Integer pageSize) {
+	                             @RequestParam(value = "pagesize", defaultValue = "30") @Min(1) @Max(100) Integer pageSize) {
 
 		if (throttled) {
 			if (!LocalDateTime.now().isAfter(throttlingExpired)) {
